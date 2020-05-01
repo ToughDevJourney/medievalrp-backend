@@ -1,0 +1,6 @@
+{
+    "env": {
+        "MONGO_ATLAS_PW": "moClose71",
+        "JWT_KEY": "someSecretCode"
+    }
+}
