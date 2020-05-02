@@ -5,19 +5,14 @@ let allClients = [];
 
 
 io.sockets.on('connection', (socket) => {
-    
-    socket.emit('player connection', socket.id);
-    socket.on('player connected', (player) => {          
-        console.log("array", allClients)     
-        socket.emit('add all players', allClients);
+    socket.emit('player connection', { socketId: socket.id, playersArr: allClients});
+    socket.on('player connected', (player) => {                   
         allClients.push(player); 
+       // socket.emit('add all players', allClients);
         socket.broadcast.emit('new player connected', player);
-      //  console.log("New Player connected! Players Array:")
-     //   console.log(allClients)
     })     
     
     socket.on('move player', (data) => {
-        console.log(data)
         let playerIndex = allClients.findIndex(el => el.socketId === data.socketId);
         if (playerIndex !== -1) {
             if (allClients[playerIndex].direction !== data.direction) {
@@ -30,9 +25,8 @@ io.sockets.on('connection', (socket) => {
         }            
     })
 
-    socket.on('disconnect', () => {
-        console.log('Got disconnect!');
-
+    socket.on('disconnect', () => {        
+        socket.broadcast.emit('delete player', socket.id);
         var i = allClients.indexOf(socket.id);
         allClients.splice(i, 1);
     });
