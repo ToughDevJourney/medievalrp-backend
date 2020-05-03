@@ -22,13 +22,21 @@ io.sockets.on('connection', (socket) => {
             allClients[playerIndex].xPos += 10 * data.direction;
 
             io.sockets.emit('move player', {xPos: allClients[playerIndex].xPos, socketId: data.socketId, direction: data.direction });
+        }
+        else{
+            console.log(data.socketId);
         }            
     })
 
     socket.on('disconnect', () => {        
         socket.broadcast.emit('delete player', socket.id);
-        var i = allClients.indexOf(socket.id);
-        allClients.splice(i, 1);
+      //  var i = allClients.indexOf(socket.id);
+        let playerIndex = allClients.findIndex(el => el.socketId === socket.id);
+        console.log("to delete", socket.id)
+        console.log(playerIndex)
+        console.log("before", allClients)
+        allClients.splice(playerIndex, 1);
+        console.log("after", allClients)
     });
 });
 
