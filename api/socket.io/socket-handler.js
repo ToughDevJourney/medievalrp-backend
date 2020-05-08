@@ -1,44 +1,68 @@
-const socket = require('socket.io');
-const server = require('../../server');
+const socket = require("socket.io");
+const server = require("../../server");
 const io = socket(server);
-let allClients = [];
+let allPlayers = [];
+let playersMoveQueue = new Set();
 
-
-io.sockets.on('connection', (socket) => {
-    socket.emit('player connection', { socketId: socket.id, playersArr: allClients});
-    socket.on('player connected', (player) => {                   
-        allClients.push(player); 
-       // socket.emit('add all players', allClients);
-        socket.broadcast.emit('new player connected', player);
-    })     
-    
-    socket.on('move player', (data) => {
-        let playerIndex = allClients.findIndex(el => el.socketId === data.socketId);
-        if (playerIndex !== -1) {
-            if (allClients[playerIndex].direction !== data.direction) {
-                allClients[playerIndex].direction = data.direction;
-                allClients[playerIndex].xPos -= 50 * data.direction;
-            }
-            allClients[playerIndex].xPos += 10 * data.direction;
-
-            io.sockets.emit('move player', {xPos: allClients[playerIndex].xPos, socketId: data.socketId, direction: data.direction });
-        }
-        else{
-            console.log(data.socketId);
-        }            
-    })
-
-    socket.on('disconnect', () => {        
-        socket.broadcast.emit('delete player', socket.id);
-      //  var i = allClients.indexOf(socket.id);
-        let playerIndex = allClients.findIndex(el => el.socketId === socket.id);
-        console.log("to delete", socket.id)
-        console.log(playerIndex)
-        console.log("before", allClients)
-        allClients.splice(playerIndex, 1);
-        console.log("after", allClients)
-    });
+io.sockets.on("connection", (socket) => {
+  socket.emit("player connection", {
+    socketId: socket.id,
+    playersArr: allPlayers,
+  });
+  socket.on("player connected", (player) => playerConnected(socket, player));
+  socket.on("player walk", (data) => movePlayer(data));
+  socket.on("player idle", (socketId) => idlePlayer(socketId));
+  socket.on("disconnect", () => disconnect(socket));
 });
 
+function playerConnected(socket, player) {
+  allPlayers.push(player);
+  socket.broadcast.emit("new player connected", player);
+}
+
+function movePlayer(data) {
+  let playerIndex = allPlayers.findIndex((el) => el.socketId === data.socketId);
+
+  if (playerIndex !== -1) {
+    let player = allPlayers[playerIndex];
+    if (player.direction !== data.direction) {
+      player.direction = data.direction;
+      player.xPos -= 70 * data.direction;
+    }
+
+    if (!playersMoveQueue.has(player)) {
+      playersMoveQueue.add(player);
+    }
+  }
+}
+
+function idlePlayer(socketId) {
+  let player = allPlayers.find((el) => el.socketId === socketId);
+  if (player !== undefined) {
+    playersMoveQueue.delete(player);
+  }
+}
+
+function disconnect(socket) {
+  let playerIndex = allPlayers.findIndex((el) => el.socketId === socket.id);
+  allPlayers.splice(playerIndex, 1);
+  socket.broadcast.emit("delete player", socket.id);
+}
 
 
+function movePlayerShedule() {
+  for (let player of playersMoveQueue) {      
+    if (player !== undefined) {
+      player.xPos += 10 * player.direction;
+
+      io.sockets.emit("move player", {
+        xPos: player.xPos,
+        socketId: player.socketId,
+        direction: player.direction,
+      });
+    }    
+  }
+  setTimeout(() => movePlayerShedule(), 50);
+}
+
+movePlayerShedule();
