@@ -53,7 +53,7 @@ function disconnect(socket) {
 function movePlayerShedule() {
   for (let player of playersMoveQueue) {      
     if (player !== undefined) {
-      player.xPos += 10 * player.direction;
+      player.xPos += 15 * player.direction;
 
       io.sockets.emit("move player", {
         xPos: player.xPos,
@@ -62,7 +62,7 @@ function movePlayerShedule() {
       });
     }    
   }
-  setTimeout(() => movePlayerShedule(), 50);
+  setTimeout(() => movePlayerShedule(), 40);
 }
 
 movePlayerShedule();
