@@ -7,11 +7,14 @@ const authRoutes = require("./api/routes/auth.js");
 const {atlasPassword} = require("./config");
 const app = express();
 
+
+
 mongoose.connect(
   `mongodb+srv://admin:${atlasPassword}@testcluster-3wwkd.mongodb.net/test?retryWrites=true&w=majority`,
   {
     useUnifiedTopology: true,
     useNewUrlParser: true
+    
   }
 );
 

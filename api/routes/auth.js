@@ -16,38 +16,36 @@ app.post("/signup", (req, res, next) => signup(req, res, next));
 app.post("/signin", (req, res, next) => signin(req, res, next));
 app.post("/refresh", (req, res, next) => refresh(req, res, next));
 app.post("/logout", auth, (req, res, next) => logout(req, res, next));
-//app.post("/delete", (req, res, next) => deleteToken(req, res, next));
+app.post("/delete", (req, res, next) => deleteToken(req, res, next));
 
 
 
 function signup(req, res, next) {
-  User.find({ email: req.body.email })
-    .then((result) => {
-      if (result.length >= 1) {
-        errorHandler(res, "email exists", 409);
+  if (req.body.password.length > 7 && req.body.password.length < 30) {
+    bcrypt.hash(req.body.password, 7, (err, hash) => {
+      if (err) {
+        errorHandler(res, "encrypt failed", 500);
       } else {
-        bcrypt.hash(req.body.password, 7, (err, hash) => {
-          if (err) {
-            return errorHandler(res, "encrypt failed", 500);
-          } else {
-            const user = new User({
-              _id: mongoose.Types.ObjectId(),
-              email: req.body.email,
-              password: hash,
-            });
-            user
-              .save()
-              .then((result) => {
-                res.status(201).json({
-                  message: "success",
-                });
-              })
-              .catch((err) => errorHandler(res, err));
-          }
+        const user = new User({
+          _id: mongoose.Types.ObjectId(),
+          email: req.body.email,
+          password: hash,
+          nickname: req.body.nickname,
         });
+        user
+          .save()
+          .then((result) => {
+            res.status(201).json({
+              message: "success",
+            });
+          })
+          .catch((err) => errorHandler(res, err));
       }
-    })
-    .catch((err) => errorHandler(res, err));
+    });
+  }
+  else{
+    errorHandler(res, "password invalid length", 403)
+  }      
 }
 
 function signin(req, res, next) {
@@ -58,9 +56,11 @@ function signin(req, res, next) {
       } else {
         bcrypt.compare(req.body.password, user.password, (err, same) => {
           if (same) {
-            return issueTokenPair(res, user._id);
+            issueTokenPair(res, user._id);
           }
-          return errorHandler(res, "auth failed", 403);
+          else{
+            errorHandler(res, err);
+          }          
         });
       }
     })
@@ -75,7 +75,7 @@ function refresh(req, res, next) {
         issueTokenPair(res, token.userId);
       }
       else{
-        errorHandler(res, "token not found", 404);
+        errorHandler(res, "token not found", 403);
       }
     })
     .catch((err) => errorHandler(res, err));
@@ -94,31 +94,34 @@ function logout(req, res, next) {
 }
 
 function issueTokenPair(res, userId) {
-  const refreshToken = uuid();
-  const accessToken = jwt.sign({ userId: userId }, secretKey, {
-    expiresIn: "15m",
-  });
-  const newToken = new Token({
-    _id: mongoose.Types.ObjectId(),
-    userId,
-    refreshToken,
-  });
-
-
   Token.deleteMany({ userId })
     .exec()
-    .then(() => {
+    .then((result) => {
+      console.log("deleted count", result.deletedCount)
+      const refreshToken = uuid();
+      const accessToken = jwt.sign({ userId: userId }, secretKey, {
+        expiresIn: "1h",
+      });
+
+      
+      const newToken = new Token({
+        _id: mongoose.Types.ObjectId(),
+        userId,
+        refreshToken,
+      });
+      console.log("BEFORE SAVE", newToken )
       newToken
         .save()
         .then(() => {
+          console.log("save success", accessToken)
           res.status(200).json({
             accessToken,
             refreshToken,
-          });
+          });           
         })
         .catch((err) => errorHandler(res, err));
     })
-    .catch((err) => errorHandler(res, err));    
+    .catch((err) => errorHandler(res, err));
 }
 
 module.exports = app;
@@ -129,15 +132,23 @@ module.exports = app;
 
 
 
+//К УДАЛЕНИЮ
+function deleteToken(req, res, next){
+  Token.deleteMany()
+  .exec()
+  .then(result => {
+    console.log(result.deletedCount)
+    User.deleteMany()
+    .exec()
+    .then(result => {
+      console.log(result.deletedCount)
+      return res.status(201).json({
+        mes: result
+      })
+    })
+    .catch((err) => errorHandler(res, err));
+  })
+  .catch((err) => errorHandler(res, err));
 
-// function deleteToken(req, res, next){
-//   Token.deleteOne()
-//   .exec()
-//   .then(result => {
-//     console.log(result.deletedCount)
-//     return res.status(201).json({
-//       mes: result
-//     })
-//   })
-//   .catch((err) => errorHandler(res, err));
-// }
+
+}
