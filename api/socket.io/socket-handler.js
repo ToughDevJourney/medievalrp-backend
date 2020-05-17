@@ -4,7 +4,7 @@ const User = require("../models/user");
 const socket = require("socket.io");
 const server = require("../../server");
 const io = socket(server);
-let allPlayers = [];
+let allClients = [];
 let playersMoveQueue = new Set();
 
 io.sockets.on("connection", (socket) => {
@@ -42,6 +42,7 @@ function getUserData(socket, userId){
           direction: 1,
         };
         playerConnected(socket, newPlayer)
+        let allPlayers = allClients.map(el => el.player);
         socket.emit("player connection", {
           playersArr: allPlayers,
           userInfo,
@@ -56,16 +57,25 @@ function getUserData(socket, userId){
     });
 }
 
-function playerConnected(socket, player) {
-  allPlayers.unshift(player);
+function playerConnected(socket, player) {  
+  allClients = allClients.filter((el) => filterDisconnectSocket(el, player._id.toString()))  
+  allClients.unshift({ player, socket });
   socket.broadcast.emit("new player connected", player);
 }
 
-function movePlayer(direction, socketId) {
-  let playerIndex = allPlayers.findIndex((el) => el.socketId === socketId);
+function filterDisconnectSocket(client, playerId){
+  if(client.player._id.toString() == playerId){    
+    io.sockets.emit("delete player", client.socket.id);
+    client.socket.disconnect(true);
+    return false;
+  }
+  return true;
+}
 
-  if (playerIndex !== -1) {
-    let player = allPlayers[playerIndex];
+function movePlayer(direction, socketId) {
+  let player = allClients.find((el) => el.socket.id === socketId).player;
+
+  if (player) {
     if (player.direction !== direction) {
       player.direction = direction;
       player.xPos -= 70 * direction;
@@ -78,15 +88,16 @@ function movePlayer(direction, socketId) {
 }
 
 function idlePlayer(socketId) {
-  let player = allPlayers.find((el) => el.socketId === socketId);
-  if (player !== undefined) {
+  let player = allClients.find((el) => el.socket.id === socketId).player;
+
+  if (player) {
     playersMoveQueue.delete(player);
   }
 }
 
 function disconnect(socket) {
-  let playerIndex = allPlayers.findIndex((el) => el.socketId === socket.id);
-  allPlayers.splice(playerIndex, 1);
+  let playerIndex = allClients.findIndex((el) => el.socket.id === socket.id);
+  allClients.splice(playerIndex, 1);
   socket.broadcast.emit("delete player", socket.id);
 }
 
