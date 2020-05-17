@@ -16,7 +16,7 @@ app.post("/signup", (req, res, next) => signup(req, res, next));
 app.post("/signin", (req, res, next) => signin(req, res, next));
 app.post("/refresh", (req, res, next) => refresh(req, res, next));
 app.post("/logout", auth, (req, res, next) => logout(req, res, next));
-app.post("/delete", (req, res, next) => deleteToken(req, res, next));
+//app.post("/delete", (req, res, next) => deleteToken(req, res, next));
 
 
 
@@ -85,7 +85,6 @@ function logout(req, res, next) {
   Token.deleteMany({ userId: req.userData.userId })
     .exec()
     .then((result) => {      
-      console.log(result);
       res.status(200).json({
         message: "logout succeeded"
       });
@@ -97,7 +96,6 @@ function issueTokenPair(res, userId) {
   Token.deleteMany({ userId })
     .exec()
     .then((result) => {
-      console.log("deleted count", result.deletedCount)
       const refreshToken = uuid();
       const accessToken = jwt.sign({ userId: userId }, secretKey, {
         expiresIn: "1h",
@@ -109,11 +107,10 @@ function issueTokenPair(res, userId) {
         userId,
         refreshToken,
       });
-      console.log("BEFORE SAVE", newToken )
+
       newToken
         .save()
         .then(() => {
-          console.log("save success", accessToken)
           res.status(200).json({
             accessToken,
             refreshToken,
@@ -129,19 +126,14 @@ module.exports = app;
 
 
 
-
-
-
 //К УДАЛЕНИЮ
 function deleteToken(req, res, next){
   Token.deleteMany()
   .exec()
   .then(result => {
-    console.log(result.deletedCount)
     User.deleteMany()
     .exec()
     .then(result => {
-      console.log(result.deletedCount)
       return res.status(201).json({
         mes: result
       })
