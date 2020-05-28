@@ -52,10 +52,10 @@ try {
 
   function connectPlayer(socket, userInfo) {
     let info = setDefaultClientInfo();
-    let player = setDefaultPlayerInfo(userInfo);
+    let player = setDefaultPlayerInfo(userInfo, socket);
 
     allClients = allClients.filter((el) =>
-      disconnectSamePlayersSocket(el, player._id.toString())
+      disconnectSamePlayer(el, player._id.toString())
     );
 
     allClients.unshift({ player, socket, info });
@@ -69,7 +69,7 @@ try {
     });
   }
 
-  function setDefaultPlayerInfo(userInfo) {
+  function setDefaultPlayerInfo(userInfo, socket) {
     return {
       _id: userInfo._id,
       socketId: socket.id,
@@ -87,7 +87,7 @@ try {
     }
   }
 
-  function disconnectSamePlayersSocket(client, playerId) {
+  function disconnectSamePlayer(client, playerId) {
     if (client.player._id.toString() == playerId) {
       io.sockets.emit("delete player", client.socket.id);
       client.socket.disconnect(true);
@@ -102,7 +102,7 @@ try {
     if(message.text.length > 0 && message.text.length <= 70){
       if(player.info.recentMessagesNum < 5){
         player.info.recentMessagesNum++;
-        io.sockets.emit("new message", message);
+        io.sockets.emit("new message", { ...message, socketId: socket.id });
         setTimeout(() => messagesCooldown(player), 5000);
       }
       else{
