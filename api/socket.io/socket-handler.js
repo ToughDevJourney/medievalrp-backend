@@ -1,9 +1,13 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/user");
+const { secretKey } = require("../../config");
 
 const socket = require("socket.io");
 const server = require("../../server");
 const io = socket(server);
+
+const playerWidth = 0;
+const playerStep = 15;
 let allClients = [];
 let playersMoveQueue = new Set();
 
@@ -13,19 +17,20 @@ try {
     socket.on("response access token", (accessToken) =>
       authPlayer(socket, accessToken)
     );
-    socket.on("player walk", (direction) => movePlayer(direction, socket.id));
+    socket.on("new message", (message) => newMessage(socket, message));
+    socket.on("player walk", (direction) => movePlayer(socket.id, direction));
     socket.on("player idle", () => idlePlayer(socket.id));
     socket.on("disconnect", () => disconnect(socket));
   });
 
   function authPlayer(socket, accessToken) {
     try {
-      const decoded = jwt.verify(accessToken, process.env.JWT_KEY);
+      const decoded = jwt.verify(accessToken, secretKey);
       let data = decoded;
       getUserData(socket, data.userId);
     } catch (e) {
-      console.log(e);
       socket.emit("jwt expired");
+      socket.disconnect(true);
     }
   }
 
@@ -34,21 +39,7 @@ try {
       .select("nickname skin")
       .then((userInfo) => {
         if (userInfo) {
-          let newPlayer = {
-            _id: userInfo._id,
-            socketId: socket.id,
-            nickname: userInfo.nickname,
-            skin: userInfo.skin,
-            xPos: 960,
-            yPos: 0,
-            direction: 1,
-          };
-          playerConnected(socket, newPlayer);
-          let allPlayers = allClients.map((el) => el.player);
-          socket.emit("player connection", {
-            playersArr: allPlayers,
-            userInfo,
-          });
+          connectPlayer(socket, userInfo);
         } else {
           socket.emit("user not found");
           socket.disconnect(true);
@@ -59,15 +50,44 @@ try {
       });
   }
 
-  function playerConnected(socket, player) {
+  function connectPlayer(socket, userInfo) {
+    let info = setDefaultClientInfo();
+    let player = setDefaultPlayerInfo(userInfo);
+
     allClients = allClients.filter((el) =>
-      filterDisconnectSocket(el, player._id.toString())
+      disconnectSamePlayersSocket(el, player._id.toString())
     );
-    allClients.unshift({ player, socket });
+
+    allClients.unshift({ player, socket, info });
     socket.broadcast.emit("new player connected", player);
+
+    //отправка новому игроку массив всех подключенных игроков
+    let allPlayers = allClients.map((el) => el.player);
+    socket.emit("player connection", {
+      playersArr: allPlayers,
+      userInfo,
+    });
   }
 
-  function filterDisconnectSocket(client, playerId) {
+  function setDefaultPlayerInfo(userInfo) {
+    return {
+      _id: userInfo._id,
+      socketId: socket.id,
+      nickname: userInfo.nickname,
+      skin: userInfo.skin,
+      xPos: 960,
+      yPos: 0,
+      direction: 1,
+    };
+  }
+
+  function setDefaultClientInfo(){
+    return {
+      recentMessagesNum: 0
+    }
+  }
+
+  function disconnectSamePlayersSocket(client, playerId) {
     if (client.player._id.toString() == playerId) {
       io.sockets.emit("delete player", client.socket.id);
       client.socket.disconnect(true);
@@ -76,14 +96,33 @@ try {
     return true;
   }
 
-  function movePlayer(direction, socketId) {
+  function newMessage(socket, message){
+    let player = allClients.find((el) => el.socket.id === socket.id);
+
+    if(message.text.length > 0 && message.text.length <= 70){
+      if(player.info.recentMessagesNum < 5){
+        player.info.recentMessagesNum++;
+        io.sockets.emit("new message", message);
+        setTimeout(() => messagesCooldown(player), 5000);
+      }
+      else{
+        socket.emit("new message", { nickname: "Система", text: "Говорите мееееедленнееееее..." });
+      }
+    }    
+  }
+
+  function messagesCooldown(player) {
+    player.info.recentMessagesNum--;
+  }
+
+  function movePlayer(socketId, direction) {
     let player = allClients.find((el) => el.socket.id === socketId);
 
     if (player) {
       player = player.player;
       if (player.direction !== direction) {
         player.direction = direction;
-        player.xPos -= 70 * direction;
+        player.xPos -= playerWidth * direction;
       }
 
       if (!playersMoveQueue.has(player)) {
@@ -111,8 +150,20 @@ try {
 
   function movePlayerShedule() {
     for (let player of playersMoveQueue) {
-      if (player !== undefined) {
-        player.xPos += 15 * player.direction;
+      if (player) {
+        player.xPos += playerStep * player.direction;
+
+        if (player.direction === 1) {
+          if (player.xPos > 1920 - playerWidth) {
+            player.xPos = 1920 - playerWidth;
+          }
+        } else if (player.direction === -1) {
+          if (player.xPos < playerWidth) {
+            player.xPos = playerWidth;
+          }
+        } else {
+          continue;
+        }
 
         io.sockets.emit("move player", {
           xPos: player.xPos,

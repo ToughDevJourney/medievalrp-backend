@@ -8,4 +8,4 @@ const tokenSchema = {
 
 }
 
-module.exports = mongoose.model('Token', tokenSchema, "token-1")
+module.exports = mongoose.model('Token', tokenSchema, "token-2")

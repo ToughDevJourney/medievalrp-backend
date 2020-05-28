@@ -8,13 +8,11 @@ const {atlasPassword} = require("./config");
 const app = express();
 
 
-
 mongoose.connect(
   `mongodb+srv://admin:${atlasPassword}@testcluster-3wwkd.mongodb.net/test?retryWrites=true&w=majority`,
   {
     useUnifiedTopology: true,
-    useNewUrlParser: true
-    
+    useNewUrlParser: true    
   }
 );
 
@@ -26,7 +24,7 @@ app.use(bodyParser.json());
 
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*"); //кто может быть источником запроса?
-  res.header("Access-Control-Allow-Headers", "*");
+  res.header("Access-Control-Allow-Headers", "*");  //какие хэдеры могут быть использованы?
 
   if (req.method == "OPTIONS") {
     res.header("Access-Control-Allow-Methods", "PUT, POST, GET, DELETE, PATCH"); //какие методы могут быть вызваны?

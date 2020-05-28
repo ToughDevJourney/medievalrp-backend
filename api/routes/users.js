@@ -7,12 +7,23 @@ const app = express();
 
 app.post("/list", /*auth,*/ (req, res, next) => list(req, res, next));
 app.post("/list2",/* auth,*/ (req, res, next) => list2(req, res, next));
-//app.post("/", auth, (req, res, next) => getUser(req, res, next))
+app.patch("/:userId", /* auth,*/ (req, res, next) => setSkin(req, res, next));
 
-function getUser(req, res, next){
-  User.find( {_id: req.userData.userId} ).select('nickname skin').then(result => {}).catch(e => errorHandler(res))
+function setSkin(req, res, next) {
+  const userId = req.params.userId;
+
+  console.log(userId)
+
+  User.update({ _id: userId }, { $set: req.body })
+    .exec()
+    .then((result) => {
+      res.status(201).json({
+        message: "success",
+        result
+      });
+    })
+    .catch((err) => errorHandler(res, err, 500));
 }
-
 
 
 function list(req, res, next) {
