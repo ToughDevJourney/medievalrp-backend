@@ -54,7 +54,7 @@ function signin(req, res, next) {
       } else if (user.banned) {
         errorHandler(res, "banned", 403);
       } else {
-        bcrypt.compare(req.body.password, user.password, (err, same) => {
+        bcrypt.compare(req.body.password, user.password, (err, same) => {          
           if (same) {
             issueTokenPair(res, user._id);
           } else {

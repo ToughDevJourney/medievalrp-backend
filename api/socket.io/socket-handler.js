@@ -99,7 +99,7 @@ try {
   function newMessage(socket, message){
     let player = allClients.find((el) => el.socket.id === socket.id);
 
-    if(message.text.length > 0 && message.text.length <= 70){
+    if(player && message.text.length > 0 && message.text.length <= 70){
       if(player.info.recentMessagesNum < 5){
         player.info.recentMessagesNum++;
         io.sockets.emit("new message", { ...message, socketId: socket.id });

@@ -23,7 +23,6 @@ function ban(req, res, next) {
       User.updateOne({ _id: req._id }, { $set: { banned: true } })
         .exec()
         .then(() => {
-          console.log("ban");
           deleteTokens(req, res, next);
         })
         .catch((err) => errorHandler(res, err, 500));
