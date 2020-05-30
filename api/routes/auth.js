@@ -16,8 +16,6 @@ app.post("/signup", (req, res, next) => signup(req, res, next));
 app.post("/signin", (req, res, next) => signin(req, res, next));
 app.post("/refresh", (req, res, next) => refresh(req, res, next));
 app.post("/logout", auth, (req, res, next) => logout(req, res, next));
-//app.post("/delete", (req, res, next) => deleteToken(req, res, next));
-
 
 
 function signup(req, res, next) {
@@ -28,7 +26,7 @@ function signup(req, res, next) {
       } else {
         const user = new User({
           _id: mongoose.Types.ObjectId(),
-          email: req.body.email,
+          email: req.body.email.toLowerCase(),
           password: hash,
           nickname: req.body.nickname,
         });
@@ -48,19 +46,20 @@ function signup(req, res, next) {
   }      
 }
 
-function signin(req, res, next) {
-  User.findOne({ email: req.body.email })
+function signin(req, res, next) {  
+  User.findOne({ email: req.body.email.toLowerCase() })
     .then((user) => {
       if (!user) {
         errorHandler(res, "auth failed", 403);
+      } else if (user.banned) {
+        errorHandler(res, "banned", 403);
       } else {
         bcrypt.compare(req.body.password, user.password, (err, same) => {
           if (same) {
             issueTokenPair(res, user._id);
-          }
-          else{
+          } else {
             errorHandler(res, err);
-          }          
+          }
         });
       }
     })
@@ -100,7 +99,6 @@ function issueTokenPair(res, userId) {
       const accessToken = jwt.sign({ userId: userId }, secretKey, {
         expiresIn: "1h",
       });
-
       
       const newToken = new Token({
         _id: mongoose.Types.ObjectId(),
@@ -126,21 +124,4 @@ module.exports = app;
 
 
 
-//К УДАЛЕНИЮ
-function deleteToken(req, res, next){
-  Token.deleteMany()
-  .exec()
-  .then(result => {
-    User.deleteMany()
-    .exec()
-    .then(result => {
-      return res.status(201).json({
-        mes: result
-      })
-    })
-    .catch((err) => errorHandler(res, err));
-  })
-  .catch((err) => errorHandler(res, err));
 
-
-}
