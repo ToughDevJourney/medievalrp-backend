@@ -54,11 +54,14 @@ try {
     let info = setDefaultClientInfo();
     let player = setDefaultPlayerInfo(userInfo, socket);
 
-    allClients = allClients.filter((el) =>
-      disconnectSamePlayer(el, player._id.toString())
-    );
+    for(let client of allClients){
+      if (client.player._id.toString() == player._id.toString()){
+        client.socket.disconnect(true);
+      }
+    }
 
-    allClients.unshift({ player, socket, info });
+    allClients.unshift({ player, socket, info });    
+
     socket.broadcast.emit("new player connected", player);
 
     //отправка новому игроку массив всех подключенных игроков
@@ -85,15 +88,6 @@ try {
     return {
       recentMessagesNum: 0
     }
-  }
-
-  function disconnectSamePlayer(client, playerId) {
-    if (client.player._id.toString() == playerId) {
-      io.sockets.emit("delete player", client.socket.id);
-      client.socket.disconnect(true);
-      return false;
-    }
-    return true;
   }
 
   function newMessage(socket, message){
@@ -142,6 +136,7 @@ try {
 
   function disconnect(socket) {
     let playerIndex = allClients.findIndex((el) => el.socket.id === socket.id);
+    
     if(playerIndex != -1){
       allClients.splice(playerIndex, 1);
     }
