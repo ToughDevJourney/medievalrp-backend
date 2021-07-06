@@ -17,9 +17,8 @@ app.post("/signin", (req, res, next) => signin(req, res, next));
 app.post("/refresh", (req, res, next) => refresh(req, res, next));
 app.post("/logout", auth, (req, res, next) => logout(req, res, next));
 
-
 function signup(req, res, next) {
-  if (req.body.password.length > 7 && req.body.password.length < 30) {
+  if (req.body.password.length > 7 && req.body.password.length < 50) {
     bcrypt.hash(req.body.password, 7, (err, hash) => {
       if (err) {
         errorHandler(res, "encrypt failed", 500);
@@ -32,21 +31,22 @@ function signup(req, res, next) {
         });
         user
           .save()
-          .then((result) => {
+          .then(() => {
             res.status(201).json({
               message: "success",
             });
           })
-          .catch((err) => errorHandler(res, err));
+          .catch((err) => {
+            errorHandler(res, err);
+          });
       }
     });
+  } else {
+    errorHandler(res, "password invalid length", 403);
   }
-  else{
-    errorHandler(res, "password invalid length", 403)
-  }      
 }
 
-function signin(req, res, next) {  
+function signin(req, res, next) {
   User.findOne({ email: req.body.email.toLowerCase() })
     .then((user) => {
       if (!user) {
@@ -54,7 +54,7 @@ function signin(req, res, next) {
       } else if (user.banned) {
         errorHandler(res, "banned", 403);
       } else {
-        bcrypt.compare(req.body.password, user.password, (err, same) => {          
+        bcrypt.compare(req.body.password, user.password, (err, same) => {
           if (same) {
             issueTokenPair(res, user._id);
           } else {
@@ -69,11 +69,10 @@ function signin(req, res, next) {
 function refresh(req, res, next) {
   Token.findOne({ refreshToken: req.body.refreshToken })
     .exec()
-    .then((token) => {      
+    .then((token) => {
       if (token) {
         issueTokenPair(res, token.userId);
-      }
-      else{
+      } else {
         errorHandler(res, "token not found", 403);
       }
     })
@@ -83,9 +82,9 @@ function refresh(req, res, next) {
 function logout(req, res, next) {
   Token.deleteMany({ userId: req.userData.userId })
     .exec()
-    .then((result) => {      
+    .then((result) => {
       res.status(200).json({
-        message: "logout succeeded"
+        message: "logout succeeded",
       });
     })
     .catch((err) => errorHandler(res, err));
@@ -99,7 +98,7 @@ function issueTokenPair(res, userId) {
       const accessToken = jwt.sign({ userId: userId }, secretKey, {
         expiresIn: "1h",
       });
-      
+
       const newToken = new Token({
         _id: mongoose.Types.ObjectId(),
         userId,
@@ -109,10 +108,11 @@ function issueTokenPair(res, userId) {
       newToken
         .save()
         .then(() => {
+          console.log("hereisyourtoken");
           res.status(200).json({
             accessToken,
             refreshToken,
-          });           
+          });
         })
         .catch((err) => errorHandler(res, err));
     })
@@ -120,8 +120,3 @@ function issueTokenPair(res, userId) {
 }
 
 module.exports = app;
-
-
-
-
-
